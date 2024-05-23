@@ -67,8 +67,10 @@ const callHandlers: { [key: string]: CallHandler } = {
     call: OcppCall<RemoteStartTransactionReq>
   ) => {
     if (!call.payload.connectorId) {
-      vcp.respond(callResult(call, { status: "Rejected" }));
-      return;
+      // vcp.respond(callResult(call, { status: "Rejected" }));
+      // return;
+      // This is a workaround for the missing connectorId in the payload
+      call.payload.connectorId = 1;
     }
     vcp.respond(callResult(call, { status: "Accepted" }));
     vcp.send(
