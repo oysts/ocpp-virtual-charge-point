@@ -1,5 +1,5 @@
 import * as uuid from "uuid";
-require("dotenv").config();
+require("dotenv").config({ path: `.env.${process.env.NODE_ENV}` })
 
 import { OcppVersion } from "./src/ocppVersion";
 import { VCP } from "./src/vcp";

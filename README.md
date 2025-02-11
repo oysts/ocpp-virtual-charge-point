@@ -25,7 +25,7 @@ PASSWORD - if used for OCPP Authentication, otherwise can be left blank
 Run OCPP 1.6:
 
 ```bash
-npx ts-node index_16.ts
+NODE_ENV=test npx ts-node index_16.ts
 ```
 
 Run OCPP 2.0.1:
