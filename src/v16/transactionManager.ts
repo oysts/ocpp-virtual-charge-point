@@ -2,6 +2,7 @@ import { call } from "../messageFactory";
 import { VCP } from "../vcp";
 
 const METER_VALUES_INTERVAL_SEC = 60;
+const CHARGING_POWER_KW = parseFloat(process.env["CHARGING_POWER_KW"] ?? "22"); // Charging power in kW (configurable via env)
 
 interface TransactionState {
   transactionId: number;
@@ -29,7 +30,7 @@ export class TransactionManager {
               timestamp: new Date(),
               sampledValue: [
                 {
-                  value: (this.getMeterValue(transactionId) / 1000).toString(),
+                  value: (this.getMeterValue(transactionId) * CHARGING_POWER_KW / 3600).toFixed(3),
                   measurand: "Energy.Active.Import.Register",
                   unit: "kWh",
                 },
@@ -62,6 +63,12 @@ export class TransactionManager {
       return 0;
     }
     return (new Date().getTime() - transaction.startedAt.getTime()) / 1000;
+  }
+
+  getMeterValueWh(transactionId: number): number {
+    const seconds = this.getMeterValue(transactionId);
+    // Convert seconds to Wh: (seconds / 3600) * kW * 1000
+    return Math.floor((seconds / 3600) * CHARGING_POWER_KW * 1000);
   }
 }
 

@@ -105,9 +105,7 @@ const callHandlers: { [key: string]: CallHandler } = {
     vcp.send(
       callFactory("StopTransaction", {
         transactionId: transactionId,
-        meterStop: Math.floor(
-          transactionManager.getMeterValue(transactionId)
-        ),
+        meterStop: transactionManager.getMeterValueWh(transactionId),
         timestamp: new Date(),
       })
     );
