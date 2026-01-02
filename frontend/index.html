@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OCPP Virtual Charge Point - Control Panel</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-left">
+                <h1>🔌 OCPP Virtual Charge Point</h1>
+                <div class="cp-id-container" id="cpIdContainer" onclick="toggleConnectionInfo()">
+                    <span class="cp-id" id="chargePointId">-</span>
+                    <span class="expand-icon">▼</span>
+                </div>
+            </div>
+            <div class="connection-status">
+                <span class="status-indicator" id="wsStatus"></span>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </header>
+
+        <!-- Expandable Connection Info -->
+        <section class="connection-info-expanded" id="connectionInfoExpanded">
+            <div class="info-grid">
+                <div class="info-item">
+                    <label>OCPP Version:</label>
+                    <span id="ocppVersion">-</span>
+                </div>
+                <div class="info-item">
+                    <label>Endpoint:</label>
+                    <span id="endpoint">-</span>
+                </div>
+                <div class="info-item">
+                    <label>Connection Status:</label>
+                    <span id="connectionStatus">-</span>
+                </div>
+            </div>
+        </section>
+
+        <div class="grid">
+
+            <!-- Connector Status Control -->
+            <section class="card">
+                <h2>🔋 Connector Status</h2>
+                <div class="form-group">
+                    <label for="connectorId">Connector ID:</label>
+                    <input type="number" id="connectorId" value="1" min="0">
+                </div>
+                <div class="button-grid">
+                    <button class="btn btn-available" onclick="setStatus('Available')">Available</button>
+                    <button class="btn btn-preparing" onclick="setStatus('Preparing')">Preparing</button>
+                    <button class="btn btn-charging" onclick="setStatus('Charging')">Charging</button>
+                    <button class="btn btn-finishing" onclick="setStatus('Finishing')">Finishing</button>
+                    <button class="btn btn-faulted" onclick="setStatus('Faulted')">Faulted</button>
+                    <button class="btn btn-reserved" onclick="setStatus('Reserved')">Reserved</button>
+                </div>
+            </section>
+
+            <!-- Authorization -->
+            <section class="card">
+                <h2>🔐 Authorization</h2>
+                <div class="form-group">
+                    <label for="idTag">RFID Tag (idTag):</label>
+                    <input type="text" id="idTag" value="AABBCCDD" placeholder="Enter RFID tag">
+                </div>
+                <button class="btn btn-primary btn-full" onclick="authorize()">Authorize</button>
+            </section>
+
+            <!-- Transaction Control -->
+            <section class="card">
+                <h2>⚡ Transaction Control</h2>
+                <div class="form-group">
+                    <label for="txConnectorId">Connector ID:</label>
+                    <input type="number" id="txConnectorId" value="1" min="1">
+                </div>
+                <div class="form-group">
+                    <label for="txIdTag">RFID Tag (idTag):</label>
+                    <input type="text" id="txIdTag" value="AABBCCDD" placeholder="Enter RFID tag">
+                </div>
+                <div class="button-row">
+                    <button class="btn btn-success" onclick="startTransaction()">Start Transaction</button>
+                    <button class="btn btn-danger" onclick="stopTransaction()">Stop Transaction</button>
+                </div>
+                <div class="form-group" style="margin-top: 15px;">
+                    <label for="transactionId">Transaction ID (for stop):</label>
+                    <input type="number" id="transactionId" value="1" min="1" placeholder="Auto-tracked">
+                </div>
+            </section>
+
+            <!-- Active State Display -->
+            <section class="card">
+                <h2>📊 Current State</h2>
+                <div class="state-grid">
+                    <div class="state-item">
+                        <label>Current Connector Status:</label>
+                        <span class="badge" id="currentStatus">Unknown</span>
+                    </div>
+                    <div class="state-item">
+                        <label>Active Transaction ID:</label>
+                        <span class="badge badge-info" id="activeTransactionId">None</span>
+                    </div>
+                    <div class="state-item">
+                        <label>Last Action:</label>
+                        <span id="lastAction">-</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Message Log -->
+            <section class="card card-full">
+                <h2>📝 Message Log</h2>
+                <div class="log-controls">
+                    <button class="btn btn-small" onclick="clearLog()">Clear Log</button>
+                    <label>
+                        <input type="checkbox" id="autoScroll" checked> Auto-scroll
+                    </label>
+                </div>
+                <div class="log-container" id="messageLog">
+                    <div class="log-empty">Waiting for messages...</div>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

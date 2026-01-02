@@ -14,25 +14,94 @@ npm install
 
 ## Running VCP
 
-Configure env variables:
+Configure env variables in `.env.test`, `.env.emabler.test`, or `.env.prod`:
 
 ```
 WS_URL - websocket endpoint
 CP_ID - ID of this VCP
+ADMIN_PORT - Admin websocket port (default: 9999)
+HTTP_PORT - Web interface HTTP port (default: 8080)
+CHARGING_POWER_KW - Charging power in kW
 PASSWORD - if used for OCPP Authentication, otherwise can be left blank
 ```
 
-Run OCPP 1.6:
+### Run OCPP 1.6:
 
+**With .env.test:**
 ```bash
-NODE_ENV=test npx ts-node index_16.ts
+npm run start:16:test
 ```
 
-Run OCPP 2.0.1:
-
+**With .env.emabler.test:**
 ```bash
-npx ts-node index_201.ts
+npm run start:16:emabler
 ```
+
+**With .env.prod:**
+```bash
+npm run start:16:prod
+```
+
+### Run OCPP 2.0.1:
+
+**With .env.test:**
+```bash
+npm run start:201:test
+```
+
+**With .env.emabler.test:**
+```bash
+npm run start:201:emabler
+```
+
+**With .env.prod:**
+```bash
+npm run start:201:prod
+```
+
+### Running Multiple Instances
+
+To run two instances simultaneously in different terminals:
+
+**Terminal 1 (with .env.test):**
+```bash
+npm run start:16:test
+```
+
+**Terminal 2 (with .env.emabler.test):**
+```bash
+npm run start:16:emabler
+```
+
+⚠️ **Note:** Make sure each instance uses a different `CP_ID`, `ADMIN_PORT`, and `HTTP_PORT` in their respective env files to avoid conflicts.
+
+## Web Interface
+
+The VCP includes a web-based control panel for easy interaction:
+
+### Accessing the Web Interface
+
+Once the VCP is running, open your browser to:
+- `.env.test` instance: http://localhost:8080
+- `.env.emabler.test` instance: http://localhost:8081
+
+### Features
+
+The web interface provides:
+
+- **Real-time Message Log**: See all OCPP messages sent and received in real-time
+- **Connector Status Control**: Change connector status (Available, Preparing, Charging, Finishing, Faulted, Reserved)
+- **Authorization**: Send Authorize requests with custom RFID tags
+- **Transaction Management**: Start and stop transactions
+- **Connection Info**: View charge point ID, OCPP version, and connection status
+- **Live Updates**: All OCPP communications are displayed instantly in the browser
+
+### Architecture
+
+The web interface uses:
+- WebSocket connection to the VCP admin interface (bidirectional communication)
+- Built-in HTTP server serving static HTML/CSS/JS files from the `frontend/` folder
+- No external dependencies - works directly with the existing admin WebSocket
 
 ## Example
 

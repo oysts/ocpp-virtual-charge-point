@@ -2,7 +2,14 @@
   "name": "ocpp-vcp-nodejs",
   "version": "0.0.1",
   "description": "Simple OCPP Virtual Charging Point",
-  "scripts": {},
+  "scripts": {
+    "start:16:test": "node -r dotenv/config node_modules/.bin/ts-node index_16.ts dotenv_config_path=.env.test",
+    "start:16:emabler": "node -r dotenv/config node_modules/.bin/ts-node index_16.ts dotenv_config_path=.env.emabler.test",
+    "start:16:prod": "node -r dotenv/config node_modules/.bin/ts-node index_16.ts dotenv_config_path=.env.prod",
+    "start:201:test": "node -r dotenv/config node_modules/.bin/ts-node index_201.ts dotenv_config_path=.env.test",
+    "start:201:emabler": "node -r dotenv/config node_modules/.bin/ts-node index_201.ts dotenv_config_path=.env.emabler.test",
+    "start:201:prod": "node -r dotenv/config node_modules/.bin/ts-node index_201.ts dotenv_config_path=.env.prod"
+  },
   "author": "Solidstudio",
   "license": "Apache-2.0",
   "dependencies": {

@@ -1,5 +1,4 @@
 import * as uuid from "uuid";
-require("dotenv").config({ path: `.env.${process.env.NODE_ENV}` })
 
 import { OcppVersion } from "./src/ocppVersion";
 import { VCP } from "./src/vcp";
@@ -11,6 +10,9 @@ const vcp = new VCP({
   basicAuthPassword: process.env["PASSWORD"] ?? undefined,
   adminWsPort: parseInt(
     process.env["ADMIN_PORT"] ?? "9999"
+  ),
+  adminHttpPort: parseInt(
+    process.env["HTTP_PORT"] ?? "8080"
   ),
 });
 

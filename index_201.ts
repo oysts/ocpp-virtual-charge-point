@@ -10,6 +10,7 @@ const vcp = new VCP({
   ocppVersion: OcppVersion.OCPP_2_0_1,
   basicAuthPassword: process.env["PASSWORD"] ?? undefined,
   adminWsPort: parseInt(process.env["ADMIN_WS_PORT"] ?? "9999"),
+  adminHttpPort: parseInt(process.env["HTTP_PORT"] ?? "8080"),
 });
 
 (async () => {

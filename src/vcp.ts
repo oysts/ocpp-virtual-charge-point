@@ -21,6 +21,7 @@ interface VCPOptions {
   chargePointId: string;
   basicAuthPassword?: string;
   adminWsPort?: number;
+  adminHttpPort?: number;
 }
 
 export class VCP {
@@ -37,11 +38,72 @@ export class VCP {
         port: vcpOptions.adminWsPort,
       });
       this.adminWs.on("connection", (_ws) => {
+        logger.info("Admin WebSocket client connected");
+        // Send initial connection info
+        this.broadcastToAdminClients({
+          type: "connection_info",
+          data: {
+            chargePointId: vcpOptions.chargePointId,
+            ocppVersion: vcpOptions.ocppVersion,
+            endpoint: vcpOptions.endpoint,
+            status: "connected"
+          }
+        });
+        
         _ws.on("message", (data: string) => {
           this.send(JSON.parse(data));
         });
+        
+        _ws.on("close", () => {
+          logger.info("Admin WebSocket client disconnected");
+        });
       });
     }
+    
+    // Add HTTP server for frontend if adminHttpPort is specified
+    if (vcpOptions.adminHttpPort) {
+      const http = require("http");
+      const fs = require("fs");
+      const path = require("path");
+      
+      const httpServer = http.createServer((req: any, res: any) => {
+        const frontendPath = path.join(__dirname, "..", "frontend");
+        let filePath = path.join(frontendPath, req.url === "/" ? "index.html" : req.url);
+        
+        const extname = path.extname(filePath);
+        const contentTypes: any = {
+          ".html": "text/html",
+          ".js": "text/javascript",
+          ".css": "text/css",
+        };
+        const contentType = contentTypes[extname] || "text/plain";
+        
+        fs.readFile(filePath, (err: any, content: any) => {
+          if (err) {
+            res.writeHead(404);
+            res.end("File not found");
+          } else {
+            res.writeHead(200, { "Content-Type": contentType });
+            res.end(content);
+          }
+        });
+      });
+      
+      httpServer.listen(vcpOptions.adminHttpPort, () => {
+        logger.info(`Frontend HTTP server running on http://localhost:${vcpOptions.adminHttpPort}`);
+      });
+    }
+  }
+  
+  private broadcastToAdminClients(message: any) {
+    if (!this.adminWs) return;
+    
+    const messageStr = JSON.stringify(message);
+    this.adminWs.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(messageStr);
+      }
+    });
   }
 
   async connect(): Promise<void> {
@@ -92,6 +154,18 @@ export class VCP {
       JSON.parse(JSON.stringify(ocppCall.payload)),
     );
     this.ws.send(jsonMessage);
+    
+    // Broadcast to admin clients
+    this.broadcastToAdminClients({
+      type: "ocpp_message_sent",
+      direction: "outgoing",
+      data: {
+        messageId: ocppCall.messageId,
+        action: ocppCall.action,
+        payload: ocppCall.payload,
+        timestamp: new Date().toISOString()
+      }
+    });
   }
 
   respond(result: OcppCallResult<any>) {
@@ -147,8 +221,20 @@ export class VCP {
     logger.info(`Receive message ⬅️  ${message}`);
     const data = JSON.parse(message);
     const [type, ...rest] = data;
+    
     if (type === 2) {
       const [messageId, action, payload] = rest;
+      // Broadcast incoming call
+      this.broadcastToAdminClients({
+        type: "ocpp_message_received",
+        direction: "incoming",
+        data: {
+          messageId,
+          action,
+          payload,
+          timestamp: new Date().toISOString()
+        }
+      });
       validateOcppRequest(this.vcpOptions.ocppVersion, action, payload);
       this.messageHandler.handleCall(this, { messageId, action, payload });
     } else if (type === 3) {
@@ -159,6 +245,17 @@ export class VCP {
           `Received CallResult for unknown messageId=${messageId}`,
         );
       }
+      // Broadcast call result
+      this.broadcastToAdminClients({
+        type: "ocpp_call_result",
+        direction: "incoming",
+        data: {
+          messageId,
+          action: enqueuedCall.action,
+          payload,
+          timestamp: new Date().toISOString()
+        }
+      });
       validateOcppResponse(
         this.vcpOptions.ocppVersion,
         enqueuedCall.action,
