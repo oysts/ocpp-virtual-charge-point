@@ -10,15 +10,26 @@
     <div class="container">
         <header>
             <div class="header-left">
-                <h1>🔌 OCPP Virtual Charge Point</h1>
+                <h1>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    OCPP Virtual Charge Point
+                </h1>
                 <div class="cp-id-container" id="cpIdContainer" onclick="toggleConnectionInfo()">
                     <span class="cp-id" id="chargePointId">-</span>
                     <span class="expand-icon">▼</span>
                 </div>
             </div>
-            <div class="connection-status">
-                <span class="status-indicator" id="wsStatus"></span>
-                <span id="statusText">Connecting...</span>
+            <div class="header-right">
+                <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">
+                    <span id="themeIcon">☀️</span>
+                    <span id="themeText">Light</span>
+                </button>
+                <div class="connection-status">
+                    <span class="status-indicator" id="wsStatus"></span>
+                    <span id="statusText">Connecting...</span>
+                </div>
             </div>
         </header>
 
@@ -44,7 +55,7 @@
 
             <!-- Connector Status Control -->
             <section class="card">
-                <h2>🔋 Connector Status</h2>
+                <h2>⚡ Connector Status</h2>
                 <div class="form-group">
                     <label for="connectorId">Connector ID:</label>
                     <input type="number" id="connectorId" value="1" min="0">
@@ -61,7 +72,7 @@
 
             <!-- Authorization -->
             <section class="card">
-                <h2>🔐 Authorization</h2>
+                <h2>� Authorization</h2>
                 <div class="form-group">
                     <label for="idTag">RFID Tag (idTag):</label>
                     <input type="text" id="idTag" value="AABBCCDD" placeholder="Enter RFID tag">
@@ -71,7 +82,7 @@
 
             <!-- Transaction Control -->
             <section class="card">
-                <h2>⚡ Transaction Control</h2>
+                <h2>🔄 Transaction Control</h2>
                 <div class="form-group">
                     <label for="txConnectorId">Connector ID:</label>
                     <input type="number" id="txConnectorId" value="1" min="1">
@@ -92,7 +103,7 @@
 
             <!-- Active State Display -->
             <section class="card">
-                <h2>📊 Current State</h2>
+                <h2>� Current State</h2>
                 <div class="state-grid">
                     <div class="state-item">
                         <label>Current Connector Status:</label>
@@ -103,6 +114,14 @@
                         <span class="badge badge-info" id="activeTransactionId">None</span>
                     </div>
                     <div class="state-item">
+                        <label>Session Duration:</label>
+                        <span class="badge badge-info" id="sessionDuration">--:--:--</span>
+                    </div>
+                    <div class="state-item">
+                        <label>Meter Value:</label>
+                        <span class="badge badge-info" id="meterValue">0 Wh</span>
+                    </div>
+                    <div class="state-item">
                         <label>Last Action:</label>
                         <span id="lastAction">-</span>
                     </div>
@@ -111,12 +130,16 @@
 
             <!-- Message Log -->
             <section class="card card-full">
-                <h2>📝 Message Log</h2>
-                <div class="log-controls">
-                    <button class="btn btn-small" onclick="clearLog()">Clear Log</button>
-                    <label>
-                        <input type="checkbox" id="autoScroll" checked> Auto-scroll
-                    </label>
+                <div class="log-header-row">
+                    <h2>📋 Message Log</h2>
+                    <div class="log-controls">
+                        <button class="btn btn-small" onclick="clearLog()">Clear Log</button>
+                        <label class="custom-checkbox">
+                            <input type="checkbox" id="autoScroll" checked>
+                            <span class="checkbox-custom"></span>
+                            <span class="checkbox-label">Auto-scroll</span>
+                        </label>
+                    </div>
                 </div>
                 <div class="log-container" id="messageLog">
                     <div class="log-empty">Waiting for messages...</div>

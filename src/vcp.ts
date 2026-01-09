@@ -24,15 +24,34 @@ interface VCPOptions {
   adminHttpPort?: number;
 }
 
+interface VCPState {
+  currentStatus: string;
+  activeTransactionId: number | null;
+  sessionStartTime: string | null;
+  meterValue: number;
+  lastAction: string;
+}
+
 export class VCP {
   private ws?: WebSocket;
   private adminWs?: WebSocketServer;
   private messageHandler: OcppMessageHandler;
+  private state: VCPState;
 
   private isFinishing: boolean = false;
 
   constructor(private vcpOptions: VCPOptions) {
     this.messageHandler = resolveMessageHandler(vcpOptions.ocppVersion);
+    
+    // Initialize state
+    this.state = {
+      currentStatus: 'Unknown',
+      activeTransactionId: null,
+      sessionStartTime: null,
+      meterValue: 0,
+      lastAction: '-'
+    };
+    
     if (vcpOptions.adminWsPort) {
       this.adminWs = new WebSocketServer({
         port: vcpOptions.adminWsPort,
@@ -49,6 +68,12 @@ export class VCP {
             status: "connected"
           }
         });
+        
+        // Send current state to newly connected client
+        _ws.send(JSON.stringify({
+          type: "initial_state",
+          data: this.state
+        }));
         
         _ws.on("message", (data: string) => {
           this.send(JSON.parse(data));
@@ -155,6 +180,9 @@ export class VCP {
     );
     this.ws.send(jsonMessage);
     
+    // Update state based on sent message
+    this.updateStateFromMessage(ocppCall.action, ocppCall.payload, 'outgoing');
+    
     // Broadcast to admin clients
     this.broadcastToAdminClients({
       type: "ocpp_message_sent",
@@ -236,6 +264,7 @@ export class VCP {
         }
       });
       validateOcppRequest(this.vcpOptions.ocppVersion, action, payload);
+      this.updateStateFromMessage(action, payload, 'incoming');
       this.messageHandler.handleCall(this, { messageId, action, payload });
     } else if (type === 3) {
       const [messageId, payload] = rest;
@@ -245,6 +274,9 @@ export class VCP {
           `Received CallResult for unknown messageId=${messageId}`,
         );
       }
+      // Update state from call result
+      this.updateStateFromCallResult(enqueuedCall.action, payload);
+      
       // Broadcast call result
       this.broadcastToAdminClients({
         type: "ocpp_call_result",
@@ -285,5 +317,70 @@ export class VCP {
     }
     logger.info(`Connection closed. code=${code}, reason=${reason}`);
     process.exit();
+  }
+
+  private updateStateFromMessage(action: string, payload: any, direction: string) {
+    let stateChanged = false;
+
+    // Update last action
+    this.state.lastAction = `${action} (${direction})`;
+    stateChanged = true;
+
+    // Track StatusNotification
+    if (action === 'StatusNotification' && payload.status) {
+      this.state.currentStatus = payload.status;
+      stateChanged = true;
+    }
+
+    // Track StopTransaction
+    if (action === 'StopTransaction' && direction === 'outgoing') {
+      this.state.activeTransactionId = null;
+      this.state.sessionStartTime = null;
+      this.state.meterValue = 0;
+      stateChanged = true;
+    }
+
+    // Track MeterValues
+    if (action === 'MeterValues' && payload.meterValue && payload.meterValue.length > 0) {
+      const sampledValue = payload.meterValue[0].sampledValue;
+      if (sampledValue && sampledValue.length > 0) {
+        const value = parseFloat(sampledValue[0].value) || 0;
+        const unit = sampledValue[0].unit || sampledValue[0].unitOfMeasure?.unit || 'Wh';
+        
+        // Convert to Wh if needed
+        if (unit === 'kWh') {
+          this.state.meterValue = Math.round(value * 1000); // Convert kWh to Wh
+        } else {
+          this.state.meterValue = Math.round(value); // Already in Wh
+        }
+        stateChanged = true;
+      }
+    }
+
+    if (stateChanged) {
+      this.broadcastStateUpdate();
+    }
+  }
+
+  private updateStateFromCallResult(action: string, payload: any) {
+    let stateChanged = false;
+
+    // Capture transaction ID from StartTransaction response
+    if (action === 'StartTransaction' && payload.transactionId) {
+      this.state.activeTransactionId = payload.transactionId;
+      this.state.sessionStartTime = new Date().toISOString();
+      stateChanged = true;
+    }
+
+    if (stateChanged) {
+      this.broadcastStateUpdate();
+    }
+  }
+
+  private broadcastStateUpdate() {
+    this.broadcastToAdminClients({
+      type: "state_update",
+      data: this.state
+    });
   }
 }

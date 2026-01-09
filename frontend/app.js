@@ -2,6 +2,8 @@
 let ws = null;
 let isConnected = false;
 let currentTransactionId = null;
+let sessionStartTime = null;
+let timerInterval = null;
 let messageCount = 0;
 
 // Configuration - read from URL or map HTTP port to WebSocket port
@@ -52,6 +54,12 @@ function handleIncomingMessage(message) {
         case 'connection_info':
             updateConnectionInfo(message.data);
             break;
+        case 'initial_state':
+            restoreState(message.data);
+            break;
+        case 'state_update':
+            restoreState(message.data);
+            break;
         case 'ocpp_message_sent':
             handleOcppMessage(message, 'outgoing');
             break;
@@ -64,6 +72,55 @@ function handleIncomingMessage(message) {
         default:
             console.log('Unknown message type:', message.type);
     }
+}
+
+// Theme management
+function toggleTheme() {
+    const html = document.documentElement;
+    const currentTheme = html.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    html.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    
+    updateThemeButton(newTheme);
+}
+
+function updateThemeButton(theme) {
+    const icon = document.getElementById('themeIcon');
+    const text = document.getElementById('themeText');
+    
+    if (theme === 'dark') {
+        icon.textContent = '🌙';
+        text.textContent = 'Dark';
+    } else {
+        icon.textContent = '☀️';
+        text.textContent = 'Light';
+    }
+}
+
+function initTheme() {
+    // Check for saved theme preference, otherwise detect system preference
+    let theme = localStorage.getItem('theme');
+    
+    if (!theme) {
+        // Detect system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        theme = prefersDark ? 'dark' : 'light';
+    }
+    
+    document.documentElement.setAttribute('data-theme', theme);
+    updateThemeButton(theme);
+    
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        // Only auto-switch if user hasn't manually set a preference
+        if (!localStorage.getItem('theme')) {
+            const newTheme = e.matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            updateThemeButton(newTheme);
+        }
+    });
 }
 
 // Toggle connection info expansion
@@ -80,6 +137,39 @@ function updateConnectionInfo(data) {
     document.getElementById('ocppVersion').textContent = data.ocppVersion || '-';
     document.getElementById('endpoint').textContent = data.endpoint || '-';
     document.getElementById('connectionStatus').textContent = data.status || '-';
+}
+
+// Restore state from backend
+function restoreState(state) {
+    console.log('Restoring state:', state);
+    
+    // Restore current status
+    if (state.currentStatus) {
+        updateCurrentStatus(state.currentStatus);
+    }
+    
+    // Restore transaction ID
+    currentTransactionId = state.activeTransactionId;
+    updateActiveTransactionId(state.activeTransactionId);
+    if (state.activeTransactionId) {
+        document.getElementById('transactionId').value = state.activeTransactionId;
+    }
+    
+    // Restore meter value
+    updateMeterValue(state.meterValue || 0);
+    
+    // Restore last action
+    if (state.lastAction) {
+        document.getElementById('lastAction').textContent = state.lastAction;
+    }
+    
+    // Restore session timer
+    if (state.sessionStartTime) {
+        sessionStartTime = new Date(state.sessionStartTime);
+        startSessionTimer();
+    } else {
+        stopSessionTimer();
+    }
 }
 
 // Handle OCPP messages
@@ -100,7 +190,23 @@ function handleOcppMessage(message, direction) {
         addLogMessage('system', 'Transaction start requested...');
     } else if (action === 'StopTransaction' && direction === 'outgoing') {
         currentTransactionId = null;
+        sessionStartTime = null;
         updateActiveTransactionId(null);
+        updateMeterValue(0);
+        stopSessionTimer();
+    } else if (action === 'MeterValues' && direction === 'outgoing') {
+        // Extract meter value from MeterValues message
+        if (payload.meterValue && payload.meterValue.length > 0) {
+            const sampledValue = payload.meterValue[0].sampledValue;
+            if (sampledValue && sampledValue.length > 0) {
+                const value = parseFloat(sampledValue[0].value) || 0;
+                const unit = sampledValue[0].unit || sampledValue[0].unitOfMeasure?.unit || 'Wh';
+                
+                // Convert to Wh if needed
+                const wh = unit === 'kWh' ? Math.round(value * 1000) : Math.round(value);
+                updateMeterValue(wh);
+            }
+        }
     }
 }
 
@@ -113,9 +219,11 @@ function handleOcppCallResult(message) {
     // Capture transaction ID from StartTransaction response
     if (action === 'StartTransaction' && payload.transactionId) {
         currentTransactionId = payload.transactionId;
+        sessionStartTime = new Date();
         updateActiveTransactionId(payload.transactionId);
         document.getElementById('transactionId').value = payload.transactionId;
         addLogMessage('system', `Transaction started with ID: ${payload.transactionId}`);
+        startSessionTimer();
     }
 }
 
@@ -143,6 +251,47 @@ function updateActiveTransactionId(txId) {
     const element = document.getElementById('activeTransactionId');
     element.textContent = txId || 'None';
     element.className = txId ? 'badge badge-success' : 'badge badge-info';
+}
+
+function updateMeterValue(value) {
+    const element = document.getElementById('meterValue');
+    const wh = parseInt(value) || 0;
+    const kwh = (wh / 1000).toFixed(2);
+    element.textContent = wh >= 1000 ? `${kwh} kWh` : `${(wh / 1000).toFixed(2)} kWh`;
+}
+
+function startSessionTimer() {
+    console.log('Starting session timer, sessionStartTime:', sessionStartTime);
+    stopSessionTimer(); // Clear any existing timer
+    updateSessionDuration();
+    timerInterval = setInterval(updateSessionDuration, 1000);
+}
+
+function stopSessionTimer() {
+    console.log('Stopping session timer');
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    document.getElementById('sessionDuration').textContent = '--:--:--';
+}
+
+function updateSessionDuration() {
+    if (!sessionStartTime) {
+        console.log('updateSessionDuration: no sessionStartTime');
+        return;
+    }
+    
+    const now = new Date();
+    const diff = Math.floor((now - sessionStartTime) / 1000); // seconds
+    
+    const hours = Math.floor(diff / 3600);
+    const minutes = Math.floor((diff % 3600) / 60);
+    const seconds = diff % 60;
+    
+    const timeStr = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    document.getElementById('sessionDuration').textContent = timeStr;
+    console.log('Session duration updated:', timeStr);
 }
 
 // Send commands to VCP
@@ -281,6 +430,7 @@ function generateUUID() {
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     connectWebSocket();
     
     // Show connection URL in console
